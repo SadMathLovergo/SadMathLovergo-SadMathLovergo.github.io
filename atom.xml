@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <feed xmlns="http://www.w3.org/2005/Atom">
-  <title>Hexo</title>
+  <title>kirinpeng</title>
   
-  
+  <subtitle>kirinpeng的blog</subtitle>
   <link href="http://example.com/atom.xml" rel="self"/>
   
   <link href="http://example.com/"/>
@@ -10,7 +10,7 @@
   <id>http://example.com/</id>
   
   <author>
-    <name>John Doe</name>
+    <name>kirinpeng</name>
     
   </author>
   
@@ -18,8 +18,8 @@
   
   <entry>
     <title>test_my_site</title>
-    <link href="http://example.com/2021/07/25/test-my-site/"/>
-    <id>http://example.com/2021/07/25/test-my-site/</id>
+    <link href="http://example.com/2021/07/25/21-19-13/"/>
+    <id>http://example.com/2021/07/25/21-19-13/</id>
     <published>2021-07-25T13:19:13.000Z</published>
     <updated>2021-07-25T13:19:13.406Z</updated>
     
@@ -31,8 +31,8 @@
   
   <entry>
     <title>Hello World</title>
-    <link href="http://example.com/2021/07/25/hello-world/"/>
-    <id>http://example.com/2021/07/25/hello-world/</id>
+    <link href="http://example.com/2021/07/25/21-17-31/"/>
+    <id>http://example.com/2021/07/25/21-17-31/</id>
     <published>2021-07-25T13:17:31.430Z</published>
     <updated>2021-07-25T13:17:31.430Z</updated>
     
