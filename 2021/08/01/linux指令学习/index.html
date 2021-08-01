@@ -17,18 +17,18 @@
 
 <script id="hexo-configurations">
     var NexT = window.NexT || {};
-    var CONFIG = {"hostname":"example.com","root":"/","scheme":"Mist","version":"7.8.0","exturl":false,"sidebar":{"position":"left","display":"always","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":true},"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":false,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}}};
+    var CONFIG = {"hostname":"example.com","root":"/","scheme":"Mist","version":"7.8.0","exturl":false,"sidebar":{"position":"left","display":"always","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":true},"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":true,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},"path":"search.xml"};
   </script>
 
-  <meta name="description" content="1.1指令学习单引号、双引号、反引号的区别 单引号和双引号都为字符串，但是单引号剥夺其中所有字符的特殊含义，双引号中的’$(参数替换)’和’&#96;(命令替换)’是例外。 反引号等价于$()，其中的内容会被当作命令执行一遍，再将结果加入到原命令中重新执行。  ()、[]、{}的区别 ()把command group放在subshell中执行 {}则是在同一个shell内完成 []用于比较，放在if、wh">
+  <meta name="description" content="一些linux指令的学习笔记">
 <meta property="og:type" content="article">
 <meta property="og:title" content="linux指令学习">
 <meta property="og:url" content="http://example.com/2021/08/01/linux%E6%8C%87%E4%BB%A4%E5%AD%A6%E4%B9%A0/index.html">
 <meta property="og:site_name" content="kirinpeng">
-<meta property="og:description" content="1.1指令学习单引号、双引号、反引号的区别 单引号和双引号都为字符串，但是单引号剥夺其中所有字符的特殊含义，双引号中的’$(参数替换)’和’&#96;(命令替换)’是例外。 反引号等价于$()，其中的内容会被当作命令执行一遍，再将结果加入到原命令中重新执行。  ()、[]、{}的区别 ()把command group放在subshell中执行 {}则是在同一个shell内完成 []用于比较，放在if、wh">
+<meta property="og:description" content="一些linux指令的学习笔记">
 <meta property="og:locale" content="zh_CN">
 <meta property="article:published_time" content="2021-08-01T03:59:01.000Z">
-<meta property="article:modified_time" content="2021-08-01T03:59:44.406Z">
+<meta property="article:modified_time" content="2021-08-01T04:25:23.869Z">
 <meta property="article:author" content="kirinpeng">
 <meta property="article:tag" content="linux">
 <meta name="twitter:card" content="summary">
@@ -106,6 +106,7 @@
 
   <div class="site-nav-right">
     <div class="toggle popup-trigger">
+        <i class="fa fa-search fa-fw fa-lg"></i>
     </div>
   </div>
 </div>
@@ -130,11 +131,43 @@
     <a href="/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>归档</a>
 
   </li>
+        <li class="menu-item menu-item-sitemap">
+
+    <a href="/sitemap.xml" rel="section"><i class="fa fa-sitemap fa-fw"></i>站点地图</a>
+
+  </li>
+      <li class="menu-item menu-item-search">
+        <a role="button" class="popup-trigger"><i class="fa fa-search fa-fw"></i>搜索
+        </a>
+      </li>
   </ul>
 </nav>
 
 
 
+  <div class="search-pop-overlay">
+    <div class="popup search-popup">
+        <div class="search-header">
+  <span class="search-icon">
+    <i class="fa fa-search"></i>
+  </span>
+  <div class="search-input-container">
+    <input autocomplete="off" autocapitalize="off"
+           placeholder="搜索..." spellcheck="false"
+           type="search" class="search-input">
+  </div>
+  <span class="popup-btn-close">
+    <i class="fa fa-times-circle"></i>
+  </span>
+</div>
+<div id="search-result">
+  <div id="no-result">
+    <i class="fa fa-spinner fa-pulse fa-5x fa-fw"></i>
+  </div>
+</div>
+
+    </div>
+  </div>
 
 </div>
     </header>
@@ -144,6 +177,7 @@
     <i class="fa fa-arrow-up"></i>
     <span>0%</span>
   </div>
+  <div class="reading-progress-bar"></div>
 
 
     <main class="main">
@@ -182,10 +216,11 @@
               <span class="post-meta-item-text">发表于</span>
               
 
-              <time title="创建时间：2021-08-01 11:59:01 / 修改时间：11:59:44" itemprop="dateCreated datePublished" datetime="2021-08-01T11:59:01+08:00">2021-08-01</time>
+              <time title="创建时间：2021-08-01 11:59:01 / 修改时间：12:25:23" itemprop="dateCreated datePublished" datetime="2021-08-01T11:59:01+08:00">2021-08-01</time>
             </span>
 
           
+            <div class="post-description">一些linux指令的学习笔记</div>
 
         </div>
       </header>
@@ -645,6 +680,10 @@
   
 
 
+
+
+  
+<script src="/js/local-search.js"></script>
 
 
 
