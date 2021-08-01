@@ -18,8 +18,8 @@
   
   <entry>
     <title>test_my_site</title>
-    <link href="http://example.com/2021/07/25/21-19-13/"/>
-    <id>http://example.com/2021/07/25/21-19-13/</id>
+    <link href="http://example.com/2021/07/25/title/"/>
+    <id>http://example.com/2021/07/25/title/</id>
     <published>2021-07-25T13:19:13.000Z</published>
     <updated>2021-07-25T13:19:13.406Z</updated>
     
@@ -31,8 +31,8 @@
   
   <entry>
     <title>Hello World</title>
-    <link href="http://example.com/2021/07/25/21-17-31/"/>
-    <id>http://example.com/2021/07/25/21-17-31/</id>
+    <link href="http://example.com/2021/07/25/title/"/>
+    <id>http://example.com/2021/07/25/title/</id>
     <published>2021-07-25T13:17:31.430Z</published>
     <updated>2021-07-25T13:17:31.430Z</updated>
     
