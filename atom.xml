@@ -6,7 +6,7 @@
   <link href="http://example.com/atom.xml" rel="self"/>
   
   <link href="http://example.com/"/>
-  <updated>2022-02-24T12:30:36.288Z</updated>
+  <updated>2022-05-08T16:40:57.361Z</updated>
   <id>http://example.com/</id>
   
   <author>
@@ -15,6 +15,25 @@
   </author>
   
   <generator uri="https://hexo.io/">Hexo</generator>
+  
+  <entry>
+    <title>如何根据系统日志定位进程crash原因</title>
+    <link href="http://example.com/2022/05/08/%E5%A6%82%E4%BD%95%E6%A0%B9%E6%8D%AE%E7%B3%BB%E7%BB%9F%E6%97%A5%E5%BF%97%E5%AE%9A%E4%BD%8D%E8%BF%9B%E7%A8%8Bcrash%E5%8E%9F%E5%9B%A0/"/>
+    <id>http://example.com/2022/05/08/%E5%A6%82%E4%BD%95%E6%A0%B9%E6%8D%AE%E7%B3%BB%E7%BB%9F%E6%97%A5%E5%BF%97%E5%AE%9A%E4%BD%8D%E8%BF%9B%E7%A8%8Bcrash%E5%8E%9F%E5%9B%A0/</id>
+    <published>2022-05-08T15:59:21.000Z</published>
+    <updated>2022-05-08T16:40:57.361Z</updated>
+    
+    <content type="html"><![CDATA[<h2 id="背景"><a href="#背景" class="headerlink" title="背景"></a>背景</h2><p>使用cpp开发的服务，当服务进程出现crash时，如果我们在服务启动前，开启了<code>ulimit -c unlimited</code>，那么我们的进程会留下core文件，通过执行<code>gdb [exec file] [core file]</code>指令，可以追踪到进程的crash位置，方便我们排查问题。<br>但是在某些情况下，例如我们的服务作为基础组件，部署在用户的机器上，为了防止core文件把机器硬盘打满，在进程启动前，会执行<code>ulimit -c 0</code>来禁止core文件的产生，在这种情况下，如果服务进程出现了crash，我们是无法通过core文件来定位问题的。<br>那么，针对这种场景，我们有解决办法吗？</p><h2 id="解决办法"><a href="#解决办法" class="headerlink" title="解决办法"></a>解决办法</h2><p>解决办法之一，就是结合系统日志来进行定位。<br><code>/var/log</code>是linux系统日志的目录，<code>/var/log/messages</code>为系统报错日志，当我们的进程出现crash时，会在这个文件中留下系统日志。<br>我们以这个cpp程序为例：</p><figure class="highlight cpp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">#<span class="meta-keyword">include</span> <span class="meta-string">&lt;iostream&gt;</span></span></span><br><span class="line"><span class="meta">#<span class="meta-keyword">include</span> <span class="meta-string">&lt;string&gt;</span></span></span><br><span class="line"></span><br><span class="line"><span class="keyword">using</span> <span class="keyword">namespace</span> std;</span><br><span class="line"></span><br><span class="line"><span class="class"><span class="keyword">struct</span> <span class="title">Info</span> &#123;</span></span><br><span class="line">  string info;</span><br><span class="line">&#125;;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">int</span> <span class="title">main</span><span class="params">()</span> </span>&#123;</span><br><span class="line">  Info* ptr = <span class="literal">NULL</span>;</span><br><span class="line">  cout &lt;&lt; ptr-&gt;info &lt;&lt; endl;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure><p>由于访问了空指针，毫无疑问，当程序运行到<code>cout &lt;&lt; ptr-&gt;info &lt;&lt; endl;</code>时，会出现<code>Segmentation fault</code>。</p><figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">./segfault </span><br><span class="line">Segmentation fault</span><br></pre></td></tr></table></figure><p>之后，我们查看<code>/var/log/messages</code>，可以获取到程序的crash信息：</p><figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">cat /var/log/messages</span><br><span class="line"></span><br><span class="line">May  8 23:52:15 localhost kernel: [1465653.941751] segfault[6805]: segfault at 0 ip 0000000000400916 sp 00007ffe2f9ec820 error 4 in segfault[400000+1000]</span><br></pre></td></tr></table></figure><p>其中，<code>segfault at</code>为引起故障的地址，<code>ip</code>为指令的内存地址，<code>sp</code>为堆栈指针地址, 及栈顶指针。</p><p>通过<code>addr2line</code>指令，我们就可以把<code>ip</code>映射到程序代码的crash位置。</p><figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line">addr2line -Cfie ./segfault 0000000000400916</span><br><span class="line">std::string::_M_data() const</span><br><span class="line">/usr/lib/gcc/x86_64-redhat-linux/4.4.6/../../../../include/c++/4.4.6/bits/basic_string.h:278</span><br><span class="line">std::string::_M_rep() const</span><br><span class="line">/usr/lib/gcc/x86_64-redhat-linux/4.4.6/../../../../include/c++/4.4.6/bits/basic_string.h:286</span><br><span class="line">std::string::size() const</span><br><span class="line">/usr/lib/gcc/x86_64-redhat-linux/4.4.6/../../../../include/c++/4.4.6/bits/basic_string.h:629</span><br><span class="line">operator&lt;&lt; &lt;char, std::char_traits&lt;char&gt;, std::allocator&lt;char&gt; &gt;</span><br><span class="line">/usr/lib/gcc/x86_64-redhat-linux/4.4.6/../../../../include/c++/4.4.6/bits/basic_string.h:2503</span><br><span class="line">main</span><br><span class="line">main.cpp:12</span><br></pre></td></tr></table></figure><p><code>addr2line</code>用于将函数地址解析为函数名，其中:</p><ul><li><code>-C</code>：将低级别的符号名解码为用户级别的名字。</li><li><code>-f</code>：用于在显示文件名、行号输出信息的同时显示函数名信息。</li><li><code>-i</code>：如果需要转换的地址是一个内联函数，则还将打印返回第一个非内联函数的信息。</li><li><code>-e</code>：用于指定需要转换地址的可执行文件名。</li></ul><p>通过上述信息，我们就可以定位到程序crash在了main函数里，crash位置为<code>main.cpp:12</code>，就是我们访问空指针的位置，从而帮助我们定位代码问题。</p>]]></content>
+    
+    
+    <summary type="html">没有core文件时，如何根据系统日志定位进程crash原因？</summary>
+    
+    
+    
+    
+    <category term="cpp" scheme="http://example.com/tags/cpp/"/>
+    
+  </entry>
   
   <entry>
     <title>boost内存池原理</title>
