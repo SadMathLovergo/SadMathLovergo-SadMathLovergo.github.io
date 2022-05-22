@@ -1,0 +1,504 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 5.4.0">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/css/main.css">
+
+
+<link rel="stylesheet" href="/lib/font-awesome/css/all.min.css">
+
+<script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"example.com","root":"/","scheme":"Mist","version":"7.8.0","exturl":false,"sidebar":{"position":"left","display":"always","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":true},"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":true,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},"path":"search.xml"};
+  </script>
+
+  <meta name="description" content="golang如何调试性能？">
+<meta property="og:type" content="article">
+<meta property="og:title" content="go pprof使用">
+<meta property="og:url" content="http://example.com/2022/05/22/go-pprof%E4%BD%BF%E7%94%A8/index.html">
+<meta property="og:site_name" content="kirinpeng">
+<meta property="og:description" content="golang如何调试性能？">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:image" content="http://example.com/images/pprof/web1.png">
+<meta property="og:image" content="http://example.com/images/pprof/web_goroutine.png">
+<meta property="og:image" content="http://example.com/images/pprof/web_threadcreate.png">
+<meta property="og:image" content="http://example.com/images/pprof/web_mutex.png">
+<meta property="og:image" content="http://example.com/images/pprof/cmd_pprof.png">
+<meta property="og:image" content="http://example.com/images/pprof/pprof.png">
+<meta property="og:image" content="http://example.com/images/pprof/pprof_flame_graph.png">
+<meta property="og:image" content="http://example.com/images/pprof/pprof_graph.png">
+<meta property="article:published_time" content="2022-05-22T08:50:20.000Z">
+<meta property="article:modified_time" content="2022-05-22T13:53:27.623Z">
+<meta property="article:author" content="kirinpeng">
+<meta property="article:tag" content="golang">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="http://example.com/images/pprof/web1.png">
+
+<link rel="canonical" href="http://example.com/2022/05/22/go-pprof%E4%BD%BF%E7%94%A8/">
+
+
+<script id="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'zh-CN'
+  };
+</script>
+
+  <title>go pprof使用 | kirinpeng</title>
+  
+
+
+
+
+
+
+  <noscript>
+  <style>
+  .use-motion .brand,
+  .use-motion .menu-item,
+  .sidebar-inner,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript>
+
+<link rel="alternate" href="/atom.xml" title="kirinpeng" type="application/atom+xml">
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="切换导航栏">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <span class="logo-line-before"><i></i></span>
+      <h1 class="site-title">kirinpeng</h1>
+      <span class="logo-line-after"><i></i></span>
+    </a>
+      <p class="site-subtitle" itemprop="description">kirinpeng的blog</p>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+        <i class="fa fa-search fa-fw fa-lg"></i>
+    </div>
+  </div>
+</div>
+
+
+
+
+<nav class="site-nav">
+  <ul id="menu" class="main-menu menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/" rel="section"><i class="fa fa-home fa-fw"></i>首页</a>
+
+  </li>
+        <li class="menu-item menu-item-tags">
+
+    <a href="/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>标签</a>
+
+  </li>
+        <li class="menu-item menu-item-archives">
+
+    <a href="/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>归档</a>
+
+  </li>
+      <li class="menu-item menu-item-search">
+        <a role="button" class="popup-trigger"><i class="fa fa-search fa-fw"></i>搜索
+        </a>
+      </li>
+  </ul>
+</nav>
+
+
+
+  <div class="search-pop-overlay">
+    <div class="popup search-popup">
+        <div class="search-header">
+  <span class="search-icon">
+    <i class="fa fa-search"></i>
+  </span>
+  <div class="search-input-container">
+    <input autocomplete="off" autocapitalize="off"
+           placeholder="搜索..." spellcheck="false"
+           type="search" class="search-input">
+  </div>
+  <span class="popup-btn-close">
+    <i class="fa fa-times-circle"></i>
+  </span>
+</div>
+<div id="search-result">
+  <div id="no-result">
+    <i class="fa fa-spinner fa-pulse fa-5x fa-fw"></i>
+  </div>
+</div>
+
+    </div>
+  </div>
+
+</div>
+    </header>
+
+    
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+  <div class="reading-progress-bar"></div>
+
+
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
+
+          <div class="content post posts-expand">
+            
+
+    
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
+    <link itemprop="mainEntityOfPage" href="http://example.com/2022/05/22/go-pprof%E4%BD%BF%E7%94%A8/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="kirinpeng">
+      <meta itemprop="description" content="stay hungry, stay foolish.">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="kirinpeng">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          go pprof使用
+        </h1>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">发表于</span>
+              
+
+              <time title="创建时间：2022-05-22 16:50:20 / 修改时间：21:53:27" itemprop="dateCreated datePublished" datetime="2022-05-22T16:50:20+08:00">2022-05-22</time>
+            </span>
+
+          
+            <div class="post-description">golang如何调试性能？</div>
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <p>调试性能，我们首先需要知道程序的性能消耗在哪儿了。如果我们需要优化程序的CPU消耗，那么我们需要获取到程序的火焰图；如果我们需要优化程序的内存占用，那么我们需要获取到程序的内存分配图。</p>
+<h2 id="程序改造"><a href="#程序改造" class="headerlink" title="程序改造"></a>程序改造</h2><p>首先，我们需要在程序的import中加入：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">_ &quot;net/http/pprof&quot;</span><br></pre></td></tr></table></figure>
+
+<p>其次，在程序开始运行的地方加上：</p>
+<figure class="highlight golang"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">go</span> <span class="function"><span class="keyword">func</span><span class="params">()</span></span> &#123;</span><br><span class="line">	log.Println(http.ListenAndServe(<span class="string">&quot;localhost:8080&quot;</span>, <span class="literal">nil</span>))</span><br><span class="line">&#125;()</span><br></pre></td></tr></table></figure>
+<p>其中，<code>localhost:8080</code>中的端口号，可以根据自己的实际需要来自定义修改。</p>
+<p>这样一来，我们就可以通过<code>localhost:8080</code>来获取到程序的相关数据，既可以通过浏览器直接访问，也可以通过<code>go tool pprof</code>指令将数据下载到本地来进行分析。</p>
+<h2 id="通过浏览器查看"><a href="#通过浏览器查看" class="headerlink" title="通过浏览器查看"></a>通过浏览器查看</h2><p>使用浏览器打开<code>http://localhost:8080/debug/pprof/</code>网页，我们可以看到这个页面。<br><img src="/images/pprof/web1.png" width="100%" height="100%"></p>
+<p>每一个<code>Count Profile</code>都是可以直接打开的，每个页面都会实时显示相关的信息，其中：</p>
+<ul>
+<li>allocs: 查看过去所有内存分配的样本。</li>
+<li>block: 查看导致阻塞同步的堆栈跟踪。</li>
+<li>cmdline: 当前程序的命令行的完整调用路径。</li>
+<li>goroutine: 查看当前所有运行的 goroutines 堆栈跟踪。</li>
+<li>heap: 查看活动对象的内存分配情况。</li>
+<li>mutex: 查看导致互斥锁的竞争持有者的堆栈跟踪。</li>
+<li>profile: 用于获取分析用的CPU profile文件，默认进行30s的CPU Profiling。</li>
+<li>threadcreate: 查看创建新 OS 线程的堆栈跟踪。</li>
+<li>trace: 当前程序的执行轨迹。</li>
+</ul>
+<p>我们写一个简单的测试程序：</p>
+<figure class="highlight golang"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">package</span> main</span><br><span class="line"></span><br><span class="line"><span class="keyword">import</span> (</span><br><span class="line">	<span class="string">&quot;log&quot;</span></span><br><span class="line">	<span class="string">&quot;net/http&quot;</span></span><br><span class="line">	_ <span class="string">&quot;net/http/pprof&quot;</span></span><br><span class="line">	<span class="string">&quot;runtime&quot;</span></span><br><span class="line">	<span class="string">&quot;time&quot;</span></span><br><span class="line">)</span><br><span class="line"></span><br><span class="line"><span class="keyword">type</span> Info <span class="keyword">struct</span> &#123;</span><br><span class="line">	name <span class="keyword">string</span></span><br><span class="line">	id   <span class="keyword">int</span></span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="title">main</span><span class="params">()</span></span> &#123;</span><br><span class="line">	runtime.SetBlockProfileRate(<span class="number">1</span>)</span><br><span class="line">	runtime.SetMutexProfileFraction(<span class="number">1</span>)</span><br><span class="line"></span><br><span class="line">	<span class="keyword">go</span> <span class="function"><span class="keyword">func</span><span class="params">()</span></span> &#123;</span><br><span class="line">		log.Println(http.ListenAndServe(<span class="string">&quot;localhost:8080&quot;</span>, <span class="literal">nil</span>))</span><br><span class="line">	&#125;()</span><br><span class="line"></span><br><span class="line">	<span class="keyword">for</span> &#123;</span><br><span class="line">		info := &amp;Info&#123;</span><br><span class="line">			name: <span class="string">&quot;test&quot;</span>,</span><br><span class="line">			id:   <span class="number">0</span>,</span><br><span class="line">		&#125;</span><br><span class="line">		info.id++</span><br><span class="line"></span><br><span class="line">		time.Sleep(time.Millisecond * <span class="number">10</span>)</span><br><span class="line">	&#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<img src="/images/pprof/web_goroutine.png" width="100%" height="100%">
+
+<p>点击<code>goroutine</code>页面，可以看到程序当前总共有5个协程，并且可以看到每个协程的协程栈信息。</p>
+<img src="/images/pprof/web_threadcreate.png" width="100%" height="100%">
+
+<p>点击<code>threadcreate</code>页面，可以看到程序当前的OS线程情况。</p>
+<img src="/images/pprof/web_mutex.png" width="100%" height="100%">
+
+<p>点击<code>mutex</code>页面，可以看到程序当前的互斥锁的竞争情况。</p>
+<p>这些页面的信息，基本都不易于阅读，如果我们想要进行更加清晰的数据，就需要将数据保存到本地来进行分析。</p>
+<h2 id="本地分析"><a href="#本地分析" class="headerlink" title="本地分析"></a>本地分析</h2><p>程序运行之后，我们通过运行以下指令，就可以将数据下载到本地。</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">go tool pprof &#x27;http://localhost:8080/debug/pprof/XXX&#x27;</span><br></pre></td></tr></table></figure>
+
+<p>如果需要CPU信息，可以执行以下指令。</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">go tool pprof &#x27;http://localhost:8080/debug/pprof/profile?seconds=30&#x27;</span><br></pre></td></tr></table></figure>
+<p>其中，<code>seconds=30</code>代表采样时间为30s，可以根据自己的实际需要修改。</p>
+<img src="/images/pprof/cmd_pprof.png" width="100%" height="100%">
+根据指令的运行结果，我们可以看到数据文件的存储路径。
+
+<p>通过运行以下指令，我们就可以在浏览器中，通过<code>localhost:[port]</code>看到更加清晰的数据，就可以进行分析了。</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">go tool pprof -http=localhost:[port] [file]</span><br><span class="line">go tool pprof -http=localhost:8081 /Users/pengqilin/pprof/pprof.samples.cpu.001.pb.gz</span><br></pre></td></tr></table></figure>
+<img src="/images/pprof/pprof.png" width="100%" height="100%">
+
+<p>其中：</p>
+<ul>
+<li>top会按照flat排序，显示出CPU消耗前N的函数。</li>
+<li>Graph为连线图。</li>
+<li>Flame Graph为火焰图。</li>
+</ul>
+<p>Flame Graph。<br><img src="/images/pprof/pprof_flame_graph.png" width="100%" height="100%"></p>
+<p>Graph连线图。<br><img src="/images/pprof/pprof_graph.png" width="100%" height="100%"></p>
+<p>有了这些更为清晰的数据，我们就可以更加方便的对程序进行分析。</p>
+<h2 id="其它"><a href="#其它" class="headerlink" title="其它"></a>其它</h2><p>除了CPU信息之外，如果需要查看堆栈调用信息，可以调用：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">go tool pprof http://localhost:[port]/debug/pprof/heap</span><br></pre></td></tr></table></figure>
+
+<p>其中：</p>
+<ul>
+<li><code>inuse_space</code>: amount of memory allocated and not released yet.</li>
+<li><code>inuse_objects</code>: amount of objects allocated and not released yet.</li>
+<li><code>alloc_space</code>: total amount of memory allocated (regardless of released).</li>
+<li><code>alloc_objects</code>: total amount of objects allocated (regardless of released).</li>
+</ul>
+<p>如果需要查看goroutine阻塞信息，可以调用：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">go tool pprof http://localhost:[port]/debug/pprof/block</span><br></pre></td></tr></table></figure>
+
+<p>如果需要查看执行路径采样，可以调用：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">go tool pprof http://localhost:[port]/debug/pprof/trace?seconds=30</span><br></pre></td></tr></table></figure>
+
+<p>如果需要查看争夺互斥持有者的堆栈跟踪，可以调用：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">go tool pprof http://localhost:[port]/debug/pprof/mutex</span><br></pre></td></tr></table></figure>
+    </div>
+
+    
+    
+    
+
+      <footer class="post-footer">
+          <div class="post-tags">
+              <a href="/tags/golang/" rel="tag"># golang</a>
+          </div>
+
+        
+
+
+        
+    <div class="post-nav">
+      <div class="post-nav-item">
+    <a href="/2022/05/08/%E5%A6%82%E4%BD%95%E6%A0%B9%E6%8D%AE%E7%B3%BB%E7%BB%9F%E6%97%A5%E5%BF%97%E5%AE%9A%E4%BD%8D%E8%BF%9B%E7%A8%8Bcrash%E5%8E%9F%E5%9B%A0/" rel="prev" title="如何根据系统日志定位进程crash原因">
+      <i class="fa fa-chevron-left"></i> 如何根据系统日志定位进程crash原因
+    </a></div>
+      <div class="post-nav-item"></div>
+    </div>
+      </footer>
+    
+  </article>
+  
+  
+  
+
+
+
+          </div>
+          
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let { activeClass } = CONFIG.comments;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      let activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      let commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+
+        </div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc">
+          文章目录
+        </li>
+        <li class="sidebar-nav-overview">
+          站点概览
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel">
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#%E7%A8%8B%E5%BA%8F%E6%94%B9%E9%80%A0"><span class="nav-number">1.</span> <span class="nav-text">程序改造</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E9%80%9A%E8%BF%87%E6%B5%8F%E8%A7%88%E5%99%A8%E6%9F%A5%E7%9C%8B"><span class="nav-number">2.</span> <span class="nav-text">通过浏览器查看</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E6%9C%AC%E5%9C%B0%E5%88%86%E6%9E%90"><span class="nav-number">3.</span> <span class="nav-text">本地分析</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E5%85%B6%E5%AE%83"><span class="nav-number">4.</span> <span class="nav-text">其它</span></a></li></ol></div>
+      </div>
+      <!--/noindex-->
+
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+  <p class="site-author-name" itemprop="name">kirinpeng</p>
+  <div class="site-description" itemprop="description">stay hungry, stay foolish.</div>
+</div>
+<div class="site-state-wrap motion-element">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/archives/">
+        
+          <span class="site-state-item-count">4</span>
+          <span class="site-state-item-name">日志</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-tags">
+            <a href="/tags/">
+          
+        <span class="site-state-item-count">4</span>
+        <span class="site-state-item-name">标签</span></a>
+      </div>
+  </nav>
+</div>
+
+
+
+      </div>
+
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+
+        
+
+<div class="copyright">
+  
+  &copy; 
+  <span itemprop="copyrightYear">2022</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">kirinpeng</span>
+</div>
+  <div class="powered-by">由 <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> & <a href="https://mist.theme-next.org/" class="theme-link" rel="noopener" target="_blank">NexT.Mist</a> 强力驱动
+  </div>
+
+        
+
+
+
+
+
+
+
+
+      </div>
+    </footer>
+  </div>
+
+  
+  <script src="/lib/anime.min.js"></script>
+  <script src="/lib/velocity/velocity.min.js"></script>
+  <script src="/lib/velocity/velocity.ui.min.js"></script>
+
+<script src="/js/utils.js"></script>
+
+<script src="/js/motion.js"></script>
+
+
+<script src="/js/schemes/muse.js"></script>
+
+
+<script src="/js/next-boot.js"></script>
+
+
+
+
+  
+
+
+
+
+  
+<script src="/js/local-search.js"></script>
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+  
+
+</body>
+</html>
